@@ -1,0 +1,191 @@
+# Hackathon log
+
+- **Project:** Fillable
+- **Event:** Convex All Gas Hackathon
+- **What it does:** Reads the FDA drug-shortage record at NDC level so a patient can see which exact manufacturer's version of their medication is available today.
+- **Live app:** not deployed
+- **Repo:** none
+- **Frontend:** Convex static hosting
+- **Convex deployment:** https://lovely-panther-645.convex.cloud (development)
+- **Components:** @convex-dev/static-hosting, @convex-dev/rate-limiter, @convex-dev/presence, @convex-dev/workpool
+- **Convex features:** schema, tables, indexes, full-text search, queries, internal mutations, internal actions, scheduled functions, crons, components
+- **Auth:** Convex Auth
+- **AI models:** openai/gpt-4o-mini by default; the provider is resolved from environment at runtime (OpenAI, Gemini, or the Convex AI Gateway)
+- **Started:** 2026-09-13T20:37:56Z
+- **Last updated:** 2026-09-13T21:09:57Z
+
+## Log
+
+### 2026-09-13 - working tree
+
+Set up the project and proved the data source before building on it.
+
+The premise is that shortage information is published at the drug level but
+lived at the NDC level. Checking `api.fda.gov/drug/shortages.json` against all
+1,602 published records: 1,152 are marked `Current` shortage, yet **748
+individual NDC packages inside those shortages are marked `Available`**, and 55
+distinct drugs carry both an available and an unavailable presentation at the
+same time. Generic Adderall is one of them — 44 available, 20 unavailable, 9
+limited. A patient asking "do you have Adderall?" is asking the wrong question.
+
+Registered the backend components in `convex/convex.config.ts` using app-owned
+root routing (`defineApp()` with no `httpPrefix`) rather than the component's
+documented default. Under component-owned routing the static site owns `/`, and
+Convex Auth's `/.well-known/openid-configuration` carries no file extension, so
+the SPA fallback would answer it with `index.html` and a 200 — auth fails while
+every health check stays green. `convex/http.ts` will register the static
+catch-all last so exact routes win.
+
+Wrote the schema (`convex/schema.ts`): NDC-grain `presentations` keyed to
+`drugs`, with `statusEvents` as a child table so change history never becomes an
+unbounded array on a document, denormalized counters because Convex has no count
+operator, and `fillReports` separated from `fillCounters` to keep high-churn
+writes off the read path.
+
+Built the ingestion normalizer test-first (`convex/lib/fdaRecord.ts`,
+`convex/lib/fdaRecord.test.ts`, 39 tests). Three things the live data forced:
+
+- **Change detection excludes `update_date`.** 853 of 1,602 records carry
+  `update_type: "Reverified"`, which almost always means the FDA re-checked and
+  nothing moved. Diffing on the date would emit a false event on every
+  reverification. The material hash covers availability, status, reason, note,
+  presentation and company only.
+- **The recovery-date parser was inventing dates.** The first version matched
+  "estimated release" inside "No estimated release date at this time" and
+  returned "date at this time" as an availability estimate. The test caught it
+  before it ran anywhere; negated phrasing now bails, and a colon-less match
+  must be date-shaped to count.
+- **Record keys collide in two real ways.** NDC + company still collided 27
+  times across the live set: one NDC published as two different doses
+  (Lisdexamfetamine 20 mg and 30 mg share 57664-048-88), and one NDC listed as
+  both `Current` and `To Be Discontinued`. The key now includes status and a
+  hash of the presentation, and six genuinely duplicate postings are resolved
+  by keeping the later `update_date`.
+
+Validated the whole normalizer against all 1,602 live records: zero rows
+dropped, zero unmapped values, 1,596 distinct keys. The FDA's live typo
+`"Unvailable"` is mapped explicitly rather than bucketed as unknown, and the 444
+records with no availability value are all `To Be Discontinued` or `Resolved`,
+where the FDA omits the field by design.
+
+Provisioned a development deployment and pushed the schema. All four components
+installed cleanly (`presence`, `rateLimiter`, `scrapePool`, `staticHosting`),
+every declared index was created, and `npx convex data` confirms the twelve
+application tables alongside Convex Auth's own. Codegen runs clean.
+
+Built the ingestion pipeline and loaded the real data (`convex/lib/fdaApi.ts`,
+`convex/ingest/fda.ts`, `convex/crons.ts`). A full sweep ingests **1,596
+presentations across 241 drugs in about twelve seconds**, with zero records
+dropped and zero unmapped values.
+
+The action does the network I/O and then drives `applyBatch` mutations in slices
+of forty, because 1,596 upserts in one mutation would exceed a single
+transaction's limits. Drug counters are recomputed from their presentations
+rather than delta-adjusted: delta arithmetic drifts permanently the first time a
+batch fails midway, whereas a bounded recompute is self-healing. That recompute
+walks drugs by slug cursor through `ctx.scheduler.runAfter`, so it stays within
+transaction limits however far the FDA list grows.
+
+Ran the sweep twice back to back. The second run saw all 1,596 records, changed
+**0** and emitted **0** events — the material hash correctly absorbs the
+reverification churn, so the live ticker will carry signal only. That behavior
+is pinned by a `convex-test` suite (`convex/ingest.test.ts`) alongside the
+availability-direction, lost-recovery-date and retirement cases. 47 tests green.
+
+The database now reports what the premise predicted: of 1,596 NDC packages,
+**748 are marked available while their drug is in shortage**, and **55 drugs
+carry both an available and an unavailable package at once**. Those 55 are the
+ones where asking a pharmacy for a specific NDC rather than a drug name changes
+the answer, so `isSplit` is stored per drug and indexed.
+
+Retirement marks a package rather than deleting it. A package disappearing from
+the FDA list is itself information, and deleting would orphan its history and
+any watch pointing at it. Only the full sweep may retire, because the delta feed
+is a partial view where absence means nothing.
+
+Scheduled the two free-tier jobs in `convex/crons.ts`: the delta feed every
+fifteen minutes, and a full reconcile every six hours that is the only path
+allowed to retire or to correct counter drift.
+
+Built the public read model — the queries a UI subscribes to (`convex/drugs.ts`,
+`convex/events.ts`, `convex/stats.ts`, `convex/pipeline.ts`). All read-only and
+public on purpose: the whole point is that someone can open the site cold, with
+no account, and get an answer.
+
+`drugs.detail` is the one that answers the actual question, and it now does, on
+real data. For the drug the FDA lists as in shortage, it returns: **ask for NDC
+47781-174-01 from Alvogen — available** — while naming the package you cannot
+get, why, and when it is expected back (Aurobindo, active-ingredient shortage,
+October 2026). It is a single query rather than three so the page updates as one
+consistent unit; a partial update where the counts and the rows disagree would
+be worse than a slightly larger payload.
+
+Added full-text search over generic name, brands and dosage form. This mattered
+more than expected: openFDA populates `brand_name` on 90% of records, but for
+generic manufacturers it just restates the generic name. Filtering those out
+leaves **111 drugs with a genuinely distinct brand**, which are exactly the ones
+people type. Searching "adderall" now returns Amphetamine Aspartate Monohydrate
+and "vyvanse" returns Lisdexamfetamine — nobody types "Amphetamine Aspartate
+Monohydrate". Brands arrive unevenly per NDC, so they are unioned across a
+drug's packages during the counter recompute.
+
+Two corrections from reading real output rather than assuming:
+
+- The ticker said a package was "added to the FDA record as unknown". The FDA
+  omits `availability` on discontinuations and resolutions — 444 of 1,596
+  records — so those normalize to "unknown", which means nothing to a reader.
+  Those rows now lead with their status instead: "to be discontinued".
+- No-material-change events were only recorded for `update_type: "Reverified"`.
+  The live data also carries "Revised" (291) and "New" (458), so a revision
+  touching a field we do not display was being dropped silently. Any FDA touch
+  with an unchanged material hash is now recorded as history and still never
+  alerts.
+
+The ticker excludes those no-change events by default, since 853 of 1,596
+records are reverifications and including them would bury the handful of
+changes that matter. They stay visible on a drug's own history, where "the FDA
+re-checked this and it did not move" is genuinely useful.
+
+58 tests green, `tsc` and `oxlint` clean.
+
+Built the frontend: a board, a drug page, and a live-data page (`src/routes/`,
+`src/components/`, Vite + React + Tailwind). Verified in a real browser rather
+than by trusting a build exit code.
+
+The drug page leads with the answer and nothing else: **ask your pharmacy for
+NDC 47781-174-01**, in large type with a copy button, the manufacturer and
+strength underneath, and one sentence explaining why asking for an NDC gets a
+different answer than asking for the drug by name. When no package is
+available, it says so plainly instead of implying a workaround exists.
+
+Confirmed the live subscription end to end. With a browser sitting on
+`/live data` and no reload, running a delta sync made a new row appear on its
+own and flipped "last sync" to "just now". That run read 60 records and changed
+zero, which is the idempotency holding in production.
+
+Two fixes that came from looking at the rendered page rather than the data:
+
+- Combination products are published one strength per salt, so generic Adderall
+  5 mg arrived as "1.25 mg; 1.25 mg; 1.25 mg; 1.25 mg". A patient holding a
+  prescription for 5 mg would not recognise their own dose, which breaks the
+  single action this product asks for. Equal components are now totalled —
+  "5mg total (4 × 1.25mg)" — and the FDA's own data confirms the arithmetic,
+  since another manufacturer publishes the identical product directly as
+  "5mg". Different strengths or units are never totalled, and are left exactly
+  as published.
+- Availability is never signalled by colour alone; every state carries an icon
+  and a word, and the distribution bar has a text alternative.
+
+A persistent footer states that this reports supply information and is not
+medical advice, that the data is what manufacturers told the FDA rather than
+any pharmacy's live stock, and that the reader should confirm with their
+pharmacist. The drug page repeats the point where a decision would be made.
+
+Also added a backendless fixtures page (`preview.html`, `src/preview.tsx`) so
+the awkward states — a package with no stated availability, a drug where
+nothing is gettable — can be designed without waiting for the FDA to produce
+that case.
+
+69 tests green, `tsc` clean, `oxlint` clean, production build succeeds at
+~43 kB gzipped for the entry bundle. Not yet deployed, so there is still no
+public app URL, and no repository remote is configured.
