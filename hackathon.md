@@ -4,19 +4,19 @@
 - **Event:** Convex All Gas Hackathon
 - **What it does:** Reads the FDA drug-shortage record at NDC level so a patient can see which exact manufacturer's version of their medication is available today.
 - **Live app:** not deployed
-- **Repo:** none
+- **Repo:** https://github.com/compiler-aditya/fillable
 - **Frontend:** Convex static hosting
 - **Convex deployment:** https://lovely-panther-645.convex.cloud (development)
 - **Components:** @convex-dev/static-hosting, @convex-dev/rate-limiter, @convex-dev/presence, @convex-dev/workpool
-- **Convex features:** schema, tables, indexes, full-text search, queries, internal mutations, internal actions, scheduled functions, crons, components
+- **Convex features:** schema, tables, indexes, full-text search, queries, internal mutations, internal actions, HTTP actions, scheduled functions, crons, components
 - **Auth:** Convex Auth
-- **AI models:** openai/gpt-4o-mini by default; the provider is resolved from environment at runtime (OpenAI, Gemini, or the Convex AI Gateway)
+- **AI models:** none in use yet. A provider-agnostic client exists at `convex/lib/model.ts` (default `openai/gpt-4o-mini`, resolving OpenAI, Gemini or the Convex AI Gateway at call time), but no function calls it.
 - **Started:** 2026-09-13T20:37:56Z
-- **Last updated:** 2026-09-13T21:09:57Z
+- **Last updated:** 2026-09-13T23:26:24Z
 
 ## Log
 
-### 2026-09-13 - working tree
+### 2026-09-13 - 5314c7a..4851fde
 
 Set up the project and proved the data source before building on it.
 
@@ -189,3 +189,39 @@ that case.
 69 tests green, `tsc` clean, `oxlint` clean, production build succeeds at
 ~43 kB gzipped for the entry bundle. Not yet deployed, so there is still no
 public app URL, and no repository remote is configured.
+
+### 2026-09-13 - 7a975f8..4aedf80
+
+Published the repository and wired Firecrawl to do real work
+(`convex/lib/firecrawl.ts`, `convex/lib/ashpParse.ts`, `convex/ingest/ashp.ts`,
+`convex/sources.ts`).
+
+ASHP is the second opinion this product needs, and Firecrawl is the only way to
+reach it: a plain fetch returns 403 even with a browser User-Agent, Firecrawl
+returns 200. All 186 bulletins now load, and the board shows where the two
+official sources disagree — ASHP lists vancomycin, oxaliplatin, moxifloxacin,
+docetaxel, diltiazem and decitabine as current shortages where the FDA record
+does not.
+
+The first sweep guessed `&pageNum=N` for pagination. ASHP silently ignores it
+and returns page one every time, so nineteen scrapes cost nineteen credits and
+produced ten bulletins. Driving the site's own page-size control instead reads
+all 186 in two scrapes. Credits are reserved before each call and counted from
+Firecrawl's own response rather than estimated.
+
+Caught a wrong brand on a medication page. openFDA joins shortage rows to
+product metadata by NDC and that join is sometimes wrong: 71288-205-03 is
+published as "Furosemide Injection" with an openfda block describing
+HYDRALAZINE HYDROCHLORIDE, and the board was rendering it. 42 of 1,448 rows
+carrying brands have this defect. Brands are now accepted only when openFDA's
+own `substance_name` corroborates the generic name.
+
+That fix exposed a second one: derived fields were not refreshed on the
+no-change path, so correcting the brand logic never reached stored rows. Only
+the material hash decides what gets announced; derived fields now refresh
+regardless. 89 tests green.
+
+Not yet wired: OpenAI and AgentMail. 157 of 186 ASHP bulletins stay unmatched
+because matching requires exact name agreement — ASHP writes "Amino Acid
+Products" where the FDA writes "Amino Acid Injection" — and a wrong match would
+be worse than none.
