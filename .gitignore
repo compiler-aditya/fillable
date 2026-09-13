@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+
+# Convex — .env.local holds CONVEX_DEPLOYMENT and deploy keys. Never commit.
+.env
+.env.local
+.env.*.local
+
+# Local Convex backend state
+.convex/
+.runtime/
+
+# Build output
+dist/
+build/
+out/
+*.tsbuildinfo
+
+# Editor / OS
+.DS_Store
+*.log
+
+# Vite / tooling
+dist-ssr/
+*.local
+.vite/
+
+# Editors
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.sw?
+
+# Convex-managed agent skills — reproducible via `npx convex ai-files install`
+# (skills-lock.json is committed). Our own hackathon skill stays tracked.
+.agents/
+.claude/skills/convex/
+.claude/skills/convex-*/
+!.claude/skills/convex-hackathon-skill/

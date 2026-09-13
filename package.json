@@ -1,0 +1,49 @@
+{
+  "name": "fillable",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MIT",
+  "description": "The FDA publishes which exact version of your medication is in stock. Fillable reads it at NDC level, live.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "oxlint",
+    "preview": "vite preview",
+    "deploy": "npx @convex-dev/static-hosting deploy",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@auth/core": "^0.41.3",
+    "@base-ui/react": "^1.8.0",
+    "@convex-dev/auth": "^0.0.95",
+    "@convex-dev/presence": "^0.4.0",
+    "@convex-dev/rate-limiter": "^0.3.2",
+    "@convex-dev/static-hosting": "^0.2.1",
+    "@convex-dev/workpool": "^0.4.12",
+    "@fontsource-variable/dm-sans": "^5.3.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "convex": "^1.45.0",
+    "lucide-react": "^1.43.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-router-dom": "^7.18.3",
+    "tailwind-merge": "^3.6.0"
+  },
+  "devDependencies": {
+    "@edge-runtime/vm": "^5.0.0",
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "@vitejs/plugin-react": "^6.1.0",
+    "convex-test": "^0.0.57",
+    "oxlint": "^1.79.0",
+    "tailwindcss": "^4.3.3",
+    "typescript": "~6.0.2",
+    "vite": "^8.2.2",
+    "vitest": "^5.0.0"
+  }
+}
