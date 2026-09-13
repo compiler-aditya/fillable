@@ -47,11 +47,24 @@ const asRecord = (value: unknown): Record<string, unknown> =>
  * deterministic enough to do ourselves — which also means a markup change fails
  * a unit test instead of quietly costing five times as much for a worse answer.
  */
+export type ScrapeAction =
+  | { type: "wait"; milliseconds: number }
+  | { type: "executeJavascript"; script: string }
+  | { type: "scrape" };
+
 export async function scrapeMarkdown(args: {
   url: string;
   waitFor?: number;
   onlyMainContent?: boolean;
-  timeoutMs?: number;
+  /**
+   * Browser steps run before the page is read.
+   *
+   * Needed because some sources only expose their full table through their own
+   * controls. ASHP paginates server-side with no usable URL parameter, but its
+   * page-size selector will render 100 rows at once — driving that control
+   * turns 19 scrapes into 2, at the same 1 credit each.
+   */
+  actions?: ScrapeAction[];
 }): Promise<ScrapeResult> {
   const response = await fetch(`${API_BASE}/scrape`, {
     method: "POST",
@@ -67,6 +80,9 @@ export async function scrapeMarkdown(args: {
       // Force a live fetch: the point of this path is freshness the cached
       // JSON API does not have, so a reused snapshot would defeat it.
       maxAge: 0,
+      ...(args.actions !== undefined && args.actions.length > 0
+        ? { actions: args.actions }
+        : {}),
     }),
   });
 

@@ -14,14 +14,20 @@ import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { internalAction, internalMutation } from "../_generated/server";
-import { ashpPageUrl, matchKey, parseAshpList } from "../lib/ashpParse";
+import {
+  ASHP_BY_REVISION_URL,
+  ASHP_LIST_URL,
+  ashpPageActions,
+  matchKey,
+  parseAshpList,
+} from "../lib/ashpParse";
 import { scrapeMarkdown } from "../lib/firecrawl";
 
 /** Fallback when FIRECRAWL_DAILY_CAP is unset. Generous but finite. */
 const DEFAULT_DAILY_CAP = 400;
 
-/** ASHP paginates ten at a time; 186 bulletins is nineteen pages. */
-const MAX_PAGES = 20;
+/** At 100 rows a page, 186 bulletins is two reads. Three is ample headroom. */
+const MAX_PAGES = 4;
 
 const today = (nowMs: number): string =>
   new Date(nowMs).toISOString().slice(0, 10);
@@ -256,8 +262,10 @@ export const sweep = internalAction({
         }
 
         const result = await scrapeMarkdown({
-          url: ashpPageUrl(page, args.sortByRevision ?? false),
-          waitFor: 3000,
+          url:
+            args.sortByRevision === true ? ASHP_BY_REVISION_URL : ASHP_LIST_URL,
+          // Page 1 is index 0; each further page is one more "Next" click.
+          actions: ashpPageActions(page - 1),
         });
         credits += result.creditsUsed;
         await ctx.runMutation(internal.ingest.ashp.recordCredits, {

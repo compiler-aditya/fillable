@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  ashpPageUrl,
+  ASHP_BY_REVISION_URL,
+  ashpPageActions,
   matchKey,
   parseAshpDate,
   parseAshpList,
@@ -108,14 +109,41 @@ describe("parseAshpDate", () => {
   });
 });
 
-describe("ashpPageUrl", () => {
-  it("omits the page number on page one", () => {
-    expect(ashpPageUrl(1)).not.toContain("pageNum");
+describe("ashpPageActions", () => {
+  // ASHP paginates server-side with no usable URL parameter. A guessed
+  // `pageNum` is silently ignored and every request returns page one — which
+  // cost 19 credits to learn and yielded 10 bulletins. Its own page-size
+  // control does work, so the table is driven rather than the URL.
+  it("sets the page size before reading, on every page", () => {
+    for (const index of [0, 1, 2]) {
+      const scripts = ashpPageActions(index)
+        .filter((a) => a.type === "executeJavascript")
+        .map((a) => (a as { script: string }).script);
+      expect(scripts[0]).toContain("value='100'");
+    }
   });
 
-  it("can sort by revision date for the cheap changefeed pass", () => {
-    expect(ashpPageUrl(1, true)).toContain("sort=2");
-    expect(ashpPageUrl(3, true)).toContain("pageNum=3");
+  it("clicks Next once per page beyond the first", () => {
+    const nextCount = (index: number) =>
+      ashpPageActions(index)
+        .filter(
+          (a) =>
+            a.type === "executeJavascript" &&
+            /next/i.test((a as { script: string }).script),
+        ).length;
+
+    expect(nextCount(0)).toBe(0);
+    expect(nextCount(1)).toBe(1);
+    expect(nextCount(2)).toBe(2);
+  });
+
+  it("waits after every interaction so the table can re-render", () => {
+    const actions = ashpPageActions(1);
+    expect(actions[actions.length - 1].type).toBe("wait");
+  });
+
+  it("has a revision-sorted url for the cheap changefeed pass", () => {
+    expect(ASHP_BY_REVISION_URL).toContain("sort=2");
   });
 });
 

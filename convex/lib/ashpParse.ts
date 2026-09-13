@@ -87,12 +87,45 @@ export function parseAshpList(markdown: string): AshpPage {
   };
 }
 
-/** Page URLs for the current-shortages list. ASHP paginates 10 at a time. */
-export function ashpPageUrl(page: number, sortByRevision = false): string {
-  const base =
-    "https://www.ashp.org/drug-shortages/current-shortages/drug-shortages-list?page=CurrentShortages";
-  const sort = sortByRevision ? "&sort=2" : "";
-  return page <= 1 ? `${base}${sort}` : `${base}${sort}&pageNum=${page}`;
+export const ASHP_LIST_URL =
+  "https://www.ashp.org/drug-shortages/current-shortages/drug-shortages-list?page=CurrentShortages";
+
+/** Sorted by revision date, newest first — the cheap changefeed pass. */
+export const ASHP_BY_REVISION_URL = `${ASHP_LIST_URL}&sort=2`;
+
+/**
+ * Browser steps to render one 100-row page of the bulletin table.
+ *
+ * ASHP paginates server-side and exposes no usable page parameter — a guessed
+ * `pageNum` is silently ignored and every request returns page one, which
+ * costs a credit per page and yields nothing. Its own page-size control does
+ * work, so setting entries to 100 and then advancing with "Next" reads all 186
+ * bulletins in two scrapes instead of nineteen.
+ */
+export function ashpPageActions(pageIndex: number): Array<
+  | { type: "wait"; milliseconds: number }
+  | { type: "executeJavascript"; script: string }
+> {
+  const setPageSize = {
+    type: "executeJavascript" as const,
+    script:
+      "var s=[...document.querySelectorAll('select')].find(x=>[...x.options].some(o=>o.value=='100'||o.text=='100')); if(s){s.value='100'; s.dispatchEvent(new Event('change',{bubbles:true}));}",
+  };
+  const clickNext = {
+    type: "executeJavascript" as const,
+    script:
+      "var n=[...document.querySelectorAll('a,button')].find(x=>/^\\s*next\\s*$/i.test(x.textContent||'')); if(n) n.click();",
+  };
+
+  const actions: Array<
+    | { type: "wait"; milliseconds: number }
+    | { type: "executeJavascript"; script: string }
+  > = [{ type: "wait", milliseconds: 3000 }, setPageSize, { type: "wait", milliseconds: 3500 }];
+
+  for (let i = 0; i < pageIndex; i++) {
+    actions.push(clickNext, { type: "wait", milliseconds: 3500 });
+  }
+  return actions;
 }
 
 /**
