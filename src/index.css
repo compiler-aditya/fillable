@@ -1,0 +1,169 @@
+@import "tailwindcss";
+@import "@fontsource-variable/dm-sans";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/**
+ * Palette.
+ *
+ * Availability is the only place colour carries meaning, so it is the only
+ * place with saturation. Everything else is a warm neutral, because this is a
+ * health tool read under stress and an alarming interface does not help anyone
+ * decide whether they can get their medication.
+ *
+ * Colour is never the sole signal: every availability state also carries an
+ * icon and a word.
+ */
+:root {
+  --bg: oklch(0.985 0.003 85);
+  --surface: oklch(1 0 0);
+  --surface-2: oklch(0.968 0.004 85);
+  --border: oklch(0.9 0.005 85);
+  --border-strong: oklch(0.82 0.008 85);
+  --text: oklch(0.22 0.008 75);
+  --text-muted: oklch(0.52 0.008 75);
+  --text-faint: oklch(0.64 0.006 75);
+
+  --good: oklch(0.53 0.13 155);
+  --good-bg: oklch(0.955 0.035 155);
+  --good-border: oklch(0.86 0.06 155);
+
+  --warn: oklch(0.6 0.13 72);
+  --warn-bg: oklch(0.96 0.045 82);
+  --warn-border: oklch(0.87 0.08 78);
+
+  --bad: oklch(0.55 0.16 22);
+  --bad-bg: oklch(0.962 0.028 22);
+  --bad-border: oklch(0.88 0.05 22);
+
+  --accent: oklch(0.48 0.12 245);
+  --accent-bg: oklch(0.96 0.03 245);
+
+  --radius: 0.75rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: oklch(0.17 0.006 75);
+    --surface: oklch(0.213 0.007 75);
+    --surface-2: oklch(0.252 0.008 75);
+    --border: oklch(0.31 0.008 75);
+    --border-strong: oklch(0.42 0.01 75);
+    --text: oklch(0.95 0.004 85);
+    --text-muted: oklch(0.72 0.008 80);
+    --text-faint: oklch(0.58 0.008 80);
+
+    --good: oklch(0.78 0.15 155);
+    --good-bg: oklch(0.28 0.05 155);
+    --good-border: oklch(0.4 0.07 155);
+
+    --warn: oklch(0.82 0.13 80);
+    --warn-bg: oklch(0.3 0.05 75);
+    --warn-border: oklch(0.43 0.07 78);
+
+    --bad: oklch(0.75 0.15 25);
+    --bad-bg: oklch(0.3 0.06 22);
+    --bad-border: oklch(0.43 0.09 22);
+
+    --accent: oklch(0.78 0.11 245);
+    --accent-bg: oklch(0.28 0.05 245);
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: oklch(0.17 0.006 75);
+  --surface: oklch(0.213 0.007 75);
+  --surface-2: oklch(0.252 0.008 75);
+  --border: oklch(0.31 0.008 75);
+  --border-strong: oklch(0.42 0.01 75);
+  --text: oklch(0.95 0.004 85);
+  --text-muted: oklch(0.72 0.008 80);
+  --text-faint: oklch(0.58 0.008 80);
+
+  --good: oklch(0.78 0.15 155);
+  --good-bg: oklch(0.28 0.05 155);
+  --good-border: oklch(0.4 0.07 155);
+
+  --warn: oklch(0.82 0.13 80);
+  --warn-bg: oklch(0.3 0.05 75);
+  --warn-border: oklch(0.43 0.07 78);
+
+  --bad: oklch(0.75 0.15 25);
+  --bad-bg: oklch(0.3 0.06 22);
+  --bad-border: oklch(0.43 0.09 22);
+
+  --accent: oklch(0.78 0.11 245);
+  --accent-bg: oklch(0.28 0.05 245);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-text-faint: var(--text-faint);
+  --color-good: var(--good);
+  --color-good-bg: var(--good-bg);
+  --color-good-border: var(--good-border);
+  --color-warn: var(--warn);
+  --color-warn-bg: var(--warn-bg);
+  --color-warn-border: var(--warn-border);
+  --color-bad: var(--bad);
+  --color-bad-bg: var(--bad-bg);
+  --color-bad-border: var(--bad-border);
+  --color-accent: var(--accent);
+  --color-accent-bg: var(--accent-bg);
+  --radius-card: var(--radius);
+  --font-sans: "DM Sans Variable", ui-sans-serif, system-ui, sans-serif;
+}
+
+html {
+  color-scheme: light dark;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Tabular figures everywhere a number is compared against another number. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@keyframes fillable-flash {
+  from {
+    background-color: var(--accent-bg);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+/* Marks a row that just changed under the reader, so a live update is
+   noticeable without being distracting. */
+.flash {
+  animation: fillable-flash 1.4s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flash {
+    animation: none;
+  }
+  * {
+    scroll-behavior: auto !important;
+  }
+}
