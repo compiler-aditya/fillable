@@ -42,4 +42,33 @@ crons.cron(
   { triggeredBy: "cron" },
 );
 
+/**
+ * T3 — ASHP changefeed, sorted by revision date.
+ *
+ * One Firecrawl credit every six hours. ASHP has no API and returns 403 to a
+ * plain fetch, so this is the only way to see its most recently revised
+ * bulletins, and where it disagrees with the FDA is the most useful thing this
+ * app can surface.
+ */
+crons.interval(
+  "ashp changefeed",
+  { hours: 6 },
+  internal.ingest.ashp.sweep,
+  { maxPages: 1, sortByRevision: true, triggeredBy: "cron" },
+);
+
+/**
+ * T4 — full ASHP corpus, once a day.
+ *
+ * Two credits for all 186 bulletins, because the page-size control is driven
+ * rather than the URL guessed. Daily is enough: ASHP bulletins are revised on
+ * a human editorial cadence, not continuously.
+ */
+crons.cron(
+  "ashp full sweep",
+  "23 4 * * *",
+  internal.ingest.ashp.sweep,
+  { maxPages: 3, triggeredBy: "cron" },
+);
+
 export default crons;

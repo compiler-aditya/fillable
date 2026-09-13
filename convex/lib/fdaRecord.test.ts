@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   displayNameFor,
+  extractBrandNames,
   extractRecoveryDate,
   hash64,
   materialHash,
@@ -291,6 +292,66 @@ describe("normalizeRecord", () => {
     })!;
     expect(after.recordKey).toBe(before.recordKey);
     expect(after.materialHash).not.toBe(before.materialHash);
+  });
+});
+
+describe("extractBrandNames", () => {
+  it("keeps a genuine brand", () => {
+    expect(
+      extractBrandNames(
+        { openfda: { brand_name: ["VYVANSE"], substance_name: ["LISDEXAMFETAMINE DIMESYLATE"] } },
+        "Lisdexamfetamine Dimesylate Capsule",
+      ),
+    ).toEqual(["VYVANSE"]);
+  });
+
+  it("drops a brand that merely restates the generic name", () => {
+    // openFDA does this for generic manufacturers; it is not a brand.
+    expect(
+      extractBrandNames(
+        { openfda: { brand_name: ["LISDEXAMFETAMINE DIMESYLATE"], substance_name: ["LISDEXAMFETAMINE DIMESYLATE"] } },
+        "Lisdexamfetamine Dimesylate Capsule",
+      ),
+    ).toEqual([]);
+  });
+
+  it("REFUSES a brand when openFDA's own block describes a different drug", () => {
+    // Real defect: NDC 71288-205-03 is published as "Furosemide Injection"
+    // with an openfda block describing HYDRALAZINE HYDROCHLORIDE. Showing that
+    // would tell someone their furosemide is hydralazine.
+    expect(
+      extractBrandNames(
+        {
+          package_ndc: "71288-205-03",
+          openfda: {
+            brand_name: ["HYDRALAZINE HYDROCHLORIDE"],
+            substance_name: ["HYDRALAZINE HYDROCHLORIDE"],
+          },
+        },
+        "Furosemide Injection",
+      ),
+    ).toEqual([]);
+  });
+
+  it("still accepts a brand when substance_name is absent", () => {
+    // No corroboration available is not the same as contradiction.
+    expect(
+      extractBrandNames({ openfda: { brand_name: ["ATIVAN"] } }, "Lorazepam Injection"),
+    ).toEqual(["ATIVAN"]);
+  });
+
+  it("accepts a combination product whose substances include the generic", () => {
+    expect(
+      extractBrandNames(
+        {
+          openfda: {
+            brand_name: ["XYLOCAINE WITH EPINEPHRINE"],
+            substance_name: ["LIDOCAINE HYDROCHLORIDE", "EPINEPHRINE BITARTRATE"],
+          },
+        },
+        "Lidocaine Hydrochloride Injection",
+      ),
+    ).toEqual(["XYLOCAINE WITH EPINEPHRINE"]);
   });
 });
 

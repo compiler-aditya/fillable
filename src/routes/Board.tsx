@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import { api } from "../../convex/_generated/api";
 import type { Doc } from "../../convex/_generated/dataModel";
 import { AvailabilityBar } from "../components/Availability";
+import { Disagreements } from "../components/Disagreements";
 import { Ticker } from "../components/Ticker";
 
 function DrugCard({ drug }: { drug: Doc<"drugs"> }) {
@@ -206,6 +207,8 @@ export function Board() {
           </div>
         )}
       </section>
+
+      <Disagreements />
 
       <Ticker />
     </div>

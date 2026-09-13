@@ -190,6 +190,13 @@ async function applyRecord(
       fdaUpdateDate: r.fdaUpdateDate,
       fdaUpdateAtMs: r.fdaUpdateAtMs,
       updateType: r.updateType,
+      // Refreshed even on the no-change path. Brands are derived metadata and
+      // deliberately excluded from the material hash, because a brand moving
+      // is not news worth alerting anyone about. But that also means a change
+      // to how brands are derived would never reach stored rows — which is how
+      // a wrong brand survived a full re-sync. Derived fields refresh here;
+      // only the hash decides whether anything is announced.
+      brandNames: r.brandNames,
       lastSeenAt: now,
       isRetired: false,
     });

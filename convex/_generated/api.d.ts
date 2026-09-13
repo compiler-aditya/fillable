@@ -24,6 +24,7 @@ import type * as lib_mask from "../lib/mask.js";
 import type * as lib_model from "../lib/model.js";
 import type * as lib_svix from "../lib/svix.js";
 import type * as pipeline from "../pipeline.js";
+import type * as sources from "../sources.js";
 import type * as stats from "../stats.js";
 
 import type {
@@ -49,6 +50,7 @@ declare const fullApi: ApiFromModules<{
   "lib/model": typeof lib_model;
   "lib/svix": typeof lib_svix;
   pipeline: typeof pipeline;
+  sources: typeof sources;
   stats: typeof stats;
 }>;
 
