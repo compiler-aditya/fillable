@@ -1,12 +1,16 @@
 import { Link } from "react-router-dom";
+import { Card } from "../components/ui/card";
 
 export function NotFound() {
   return (
-    <div className="rounded-card border border-border bg-surface p-10 text-center">
-      <h1 className="text-lg font-medium text-text">Page not found</h1>
-      <Link to="/" className="mt-3 inline-block text-sm text-accent underline">
+    <Card className="px-6 py-14 text-center">
+      <h1 className="text-lg font-medium">Page not found</h1>
+      <Link
+        to="/"
+        className="mt-3 inline-block text-sm text-primary underline underline-offset-2"
+      >
         Back to all medications
       </Link>
-    </div>
+    </Card>
   );
 }

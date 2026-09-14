@@ -8,7 +8,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import type { Doc } from "../convex/_generated/dataModel";
-import { AvailabilityBadge, AvailabilityBar } from "./components/Availability";
+import { AvailabilityBadge, AvailabilityBar, AvailabilityCounts } from "./components/Availability";
 import "./index.css";
 
 const base = {
@@ -37,7 +37,7 @@ const fixtures: Doc<"presentations">[] = [
 export function Preview() {
   return (
     <div className="mx-auto max-w-3xl space-y-8 p-8">
-      <h1 className="text-xl font-semibold text-text">Availability states</h1>
+      <h1 className="text-xl font-semibold">Availability states</h1>
 
       <div className="flex flex-wrap gap-2">
         {fixtures.map((p, i) => (
@@ -45,7 +45,7 @@ export function Preview() {
         ))}
       </div>
 
-      <h2 className="text-sm font-medium text-text">Distribution bars</h2>
+      <h2 className="text-sm font-medium">Distribution bars</h2>
       <div className="space-y-4">
         {[
           { available: 44, limited: 9, unavailable: 20 },
@@ -55,10 +55,7 @@ export function Preview() {
         ].map((d, i) => (
           <div key={i} className="space-y-1">
             <AvailabilityBar {...d} />
-            <p className="text-xs text-text-faint tnum">
-              {d.available} available · {d.limited} limited · {d.unavailable}{" "}
-              unavailable
-            </p>
+            <AvailabilityCounts {...d} />
           </div>
         ))}
       </div>

@@ -1,54 +1,47 @@
 import { useQuery } from "convex/react";
-import { ArrowRight, Search, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { ChevronRight, Search, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../convex/_generated/api";
 import type { Doc } from "../../convex/_generated/dataModel";
-import { AvailabilityBar } from "../components/Availability";
+import { AvailabilityBar, AvailabilityCounts } from "../components/Availability";
 import { Disagreements } from "../components/Disagreements";
 import { Ticker } from "../components/Ticker";
+import { Card } from "../components/ui/card";
+import { Input } from "../components/ui/input";
+import { Skeleton } from "../components/ui/skeleton";
 
-function DrugCard({ drug }: { drug: Doc<"drugs"> }) {
+function DrugRow({ drug }: { drug: Doc<"drugs"> }) {
   return (
     <Link
       to={`/d/${drug.slug}`}
-      className="group block rounded-card border border-border bg-surface p-4 transition-colors hover:border-border-strong"
+      className="group flex items-center gap-4 px-4 py-3.5 transition-colors hover:bg-muted/60"
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h3 className="font-medium text-text leading-snug truncate">
-            {drug.displayName}
-          </h3>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-baseline gap-2">
+          <h3 className="truncate text-sm font-medium">{drug.displayName}</h3>
           {drug.brandNames.length > 0 && (
-            <p className="mt-0.5 text-xs text-text-faint truncate">
-              {drug.brandNames.slice(0, 2).join(" · ")}
-            </p>
+            <span className="shrink-0 truncate text-xs text-muted-foreground">
+              {drug.brandNames[0]}
+            </span>
           )}
         </div>
-        <ArrowRight className="size-4 shrink-0 text-text-faint transition-transform group-hover:translate-x-0.5" />
+        <div className="mt-2 max-w-56">
+          <AvailabilityBar
+            available={drug.availableCount}
+            limited={drug.limitedCount}
+            unavailable={drug.unavailableCount}
+          />
+        </div>
+        <div className="mt-1.5">
+          <AvailabilityCounts
+            available={drug.availableCount}
+            limited={drug.limitedCount}
+            unavailable={drug.unavailableCount}
+          />
+        </div>
       </div>
-
-      <div className="mt-3">
-        <AvailabilityBar
-          available={drug.availableCount}
-          limited={drug.limitedCount}
-          unavailable={drug.unavailableCount}
-        />
-      </div>
-
-      <p className="mt-2.5 text-xs text-text-muted tnum">
-        <span className="text-good font-medium">{drug.availableCount}</span> you
-        can get ·{" "}
-        <span className="text-bad font-medium">{drug.unavailableCount}</span> you
-        cannot
-        {drug.limitedCount > 0 && (
-          <>
-            {" "}
-            · <span className="text-warn font-medium">{drug.limitedCount}</span>{" "}
-            limited
-          </>
-        )}
-      </p>
+      <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
     </Link>
   );
 }
@@ -57,159 +50,128 @@ export function Board() {
   const [raw, setRaw] = useState("");
   const [term, setTerm] = useState("");
 
-  // Debounced so every keystroke does not open a new subscription.
+  // Debounced so a keystroke does not open a new subscription each time.
   useEffect(() => {
     const id = setTimeout(() => setTerm(raw.trim()), 180);
     return () => clearTimeout(id);
   }, [raw]);
 
   const stats = useQuery(api.stats.global, {});
-  const board = useQuery(api.drugs.board, { limit: 24 });
+  const board = useQuery(api.drugs.board, { limit: 40 });
   const results = useQuery(
     api.drugs.search,
-    term.length >= 2 ? { q: term, limit: 24 } : "skip",
+    term.length >= 2 ? { q: term, limit: 40 } : "skip",
   );
 
   const searching = term.length >= 2;
   const shown = searching ? results : board;
-  const loading = shown === undefined;
-
-  const headline = useMemo(() => {
-    if (stats === undefined || stats === null) return null;
-    return {
-      available: stats.availableInShortageCount,
-      split: stats.splitDrugCount,
-      packages: stats.totalPresentations,
-      drugs: stats.drugCount,
-    };
-  }, [stats]);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       <section>
-        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-text text-balance">
-          Your medication is “in shortage.”
+        <h1 className="text-pretty text-3xl font-semibold leading-[1.15] tracking-tight sm:text-4xl">
+          Your medication is &ldquo;in shortage.&rdquo;
           <br />
-          <span className="text-accent">Some versions of it are in stock.</span>
+          <span className="text-primary">Some versions are in stock.</span>
         </h1>
 
-        <p className="mt-3 max-w-2xl text-text-muted leading-relaxed">
+        <p className="mt-4 max-w-xl text-[0.95rem] leading-relaxed text-muted-foreground">
           Shortages are reported per package, not per drug. The FDA publishes
-          exactly which manufacturer&rsquo;s version is available, down to the NDC
-          number — but almost nobody reads it at that depth, so people call a
-          dozen pharmacies asking the wrong question.
+          which manufacturer&rsquo;s version is available down to the NDC number.
+          Find yours, and ask for it by number.
         </p>
 
-        {headline !== null && (
-          <dl className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {[
-              {
-                label: "packages available inside a shortage",
-                value: headline.available,
-                accent: true,
-              },
-              { label: "drugs where the version matters", value: headline.split },
-              { label: "packages tracked", value: headline.packages },
-              { label: "medications", value: headline.drugs },
-            ].map((s) => (
-              <div
-                key={s.label}
-                className={`rounded-card border p-3 ${
-                  s.accent
-                    ? "border-good-border bg-good-bg"
-                    : "border-border bg-surface"
-                }`}
-              >
-                <dd
-                  className={`text-2xl font-semibold tnum ${
-                    s.accent ? "text-good" : "text-text"
-                  }`}
-                >
-                  {s.value.toLocaleString()}
-                </dd>
-                <dt className="mt-0.5 text-xs leading-tight text-text-muted">
-                  {s.label}
-                </dt>
-              </div>
-            ))}
-          </dl>
-        )}
-      </section>
-
-      <section>
-        <label className="relative block">
-          <span className="sr-only">Search for a medication</span>
+        {/* The primary action, directly under the claim rather than below a
+            wall of statistics — searching is why anyone opens this. */}
+        <div className="relative mt-6">
           <Search
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 size-4 text-text-faint"
+            className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
             aria-hidden="true"
           />
-          <input
+          <Input
             value={raw}
             onChange={(e) => setRaw(e.target.value)}
             type="search"
             autoComplete="off"
-            placeholder="Search by brand or generic name — try Adderall, Vyvanse, Ativan"
-            className="w-full rounded-card border border-border bg-surface py-2.5 pl-9 pr-9 text-text placeholder:text-text-faint outline-none focus:border-accent"
+            aria-label="Search for a medication"
+            placeholder="Search a medication — Adderall, Vyvanse, Ativan…"
+            className="h-12 rounded-xl pl-10 pr-10 text-base shadow-sm"
           />
           {raw.length > 0 && (
             <button
               type="button"
               onClick={() => setRaw("")}
               aria-label="Clear search"
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-text-faint hover:text-text"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground hover:text-foreground"
             >
               <X className="size-4" />
             </button>
           )}
-        </label>
+        </div>
+
+        {stats !== undefined && stats !== null && (
+          <p className="tnum mt-4 text-sm text-muted-foreground">
+            <strong className="font-semibold text-ok">
+              {stats.availableInShortageCount.toLocaleString()}
+            </strong>{" "}
+            of {stats.totalPresentations.toLocaleString()} tracked packages are
+            available right now inside drugs the FDA lists as in shortage.{" "}
+            <strong className="font-semibold text-foreground">
+              {stats.splitDrugCount}
+            </strong>{" "}
+            medications have both a version you can get and one you cannot.
+          </p>
+        )}
       </section>
 
       <section>
         <div className="mb-3 flex items-baseline justify-between gap-3">
-          <h2 className="text-sm font-medium text-text">
+          <h2 className="text-sm font-medium">
             {searching
               ? `Results for “${term}”`
-              : "Where knowing the exact package changes the answer"}
+              : "Where the exact package changes the answer"}
           </h2>
-          {!searching && shown !== undefined && (
-            <span className="text-xs text-text-faint tnum">
-              {shown.length} shown
+          {shown !== undefined && shown.length > 0 && (
+            <span className="tnum text-xs text-muted-foreground">
+              {shown.length}
             </span>
           )}
         </div>
 
-        {loading ? (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {shown === undefined ? (
+          <Card className="divide-y divide-border overflow-hidden p-0">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div
-                key={i}
-                className="h-[7.5rem] animate-pulse rounded-card border border-border bg-surface-2"
-              />
+              <div key={i} className="space-y-2 px-4 py-3.5">
+                <Skeleton className="h-4 w-52" />
+                <Skeleton className="h-1 w-56" />
+                <Skeleton className="h-3 w-40" />
+              </div>
             ))}
-          </div>
+          </Card>
         ) : shown.length === 0 ? (
-          <p className="rounded-card border border-border bg-surface p-6 text-center text-sm text-text-muted">
-            {searching ? (
-              <>
-                Nothing matched “{term}”. That usually means this medication
-                isn&rsquo;t currently on the FDA shortage list — which is good
-                news.
-              </>
-            ) : (
-              "No data loaded yet."
-            )}
-          </p>
+          <Card className="px-6 py-10 text-center">
+            <p className="text-sm text-muted-foreground">
+              {searching ? (
+                <>
+                  Nothing matched &ldquo;{term}&rdquo;. That usually means this
+                  medication isn&rsquo;t on the FDA shortage list — which is good
+                  news.
+                </>
+              ) : (
+                "No data loaded yet."
+              )}
+            </p>
+          </Card>
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <Card className="divide-y divide-border overflow-hidden p-0">
             {shown.map((d) => (
-              <DrugCard key={d._id} drug={d} />
+              <DrugRow key={d._id} drug={d} />
             ))}
-          </div>
+          </Card>
         )}
       </section>
 
       <Disagreements />
-
       <Ticker />
     </div>
   );
