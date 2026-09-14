@@ -31,6 +31,52 @@ export const models = internalAction({
   },
 });
 
+/**
+ * Diagnose a misconfigured endpoint without leaking the key.
+ *
+ * Reports the URL actually constructed, the status, the content type and the
+ * first bytes of the body. A base URL is not a secret; the key never appears.
+ * This exists because "unexpected token '<'" only tells you the reply was HTML,
+ * not which URL produced it.
+ */
+export const diagnose = internalAction({
+  args: {},
+  returns: v.object({
+    provider: v.string(),
+    modelsUrl: v.string(),
+    status: v.number(),
+    contentType: v.string(),
+    looksLikeJson: v.boolean(),
+    bodyStart: v.string(),
+    keyPresent: v.boolean(),
+    baseUrlSet: v.boolean(),
+  }),
+  handler: async () => {
+    const provider = await activeProviderName();
+    const rawBase = process.env.OPENAI_BASE_URL;
+    const base = (rawBase ?? "https://api.openai.com/v1").replace(/\/+$/, "");
+    const modelsUrl = `${base}/models`;
+
+    const key = process.env.OPENAI_API_KEY ?? "";
+    const response = await fetch(modelsUrl, {
+      headers: { Authorization: `Bearer ${key}` },
+    });
+    const text = await response.text();
+    const trimmed = text.trimStart();
+
+    return {
+      provider,
+      modelsUrl,
+      status: response.status,
+      contentType: response.headers.get("content-type") ?? "unknown",
+      looksLikeJson: trimmed.startsWith("{") || trimmed.startsWith("["),
+      bodyStart: trimmed.slice(0, 220),
+      keyPresent: key.length > 0,
+      baseUrlSet: rawBase !== undefined && rawBase.length > 0,
+    };
+  },
+});
+
 /** One real completion, to prove the model id and JSON mode both work. */
 export const ping = internalAction({
   args: {},

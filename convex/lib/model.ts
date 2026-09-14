@@ -75,7 +75,17 @@ async function resolveProvider(): Promise<Provider> {
   ) {
     return {
       name: "openai",
-      baseUrl: OPENAI_BASE,
+      /*
+       * `OPENAI_BASE_URL` points this at any OpenAI-compatible endpoint —
+       * a One API / New API style router, a corporate proxy, or a local mock —
+       * without touching a line of calling code. The request and response shape
+       * is identical, so everything downstream is unaffected.
+       *
+       * Trailing slashes are trimmed because gateways are inconsistent about
+       * whether their console shows the base with one, and `//chat/completions`
+       * 404s on some of them.
+       */
+      baseUrl: (process.env.OPENAI_BASE_URL ?? OPENAI_BASE).replace(/\/+$/, ""),
       authorization: `Bearer ${openaiKey}`,
       modelId: stripPrefix,
     };

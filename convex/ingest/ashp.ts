@@ -22,6 +22,7 @@ import {
   parseAshpList,
 } from "../lib/ashpParse";
 import { scrapeMarkdown } from "../lib/firecrawl";
+import { routesCompatible } from "../lib/route";
 
 /** Fallback when FIRECRAWL_DAILY_CAP is unset. Generous but finite. */
 const DEFAULT_DAILY_CAP = 400;
@@ -145,7 +146,17 @@ export const upsertBulletins = internalMutation({
           .query("drugs")
           .withSearchIndex("search_drug", (q) => q.search("searchText", b.title))
           .take(5);
-        const exact = candidates.find((d) => matchKey(d.genericName) === key);
+        // matchKey deliberately strips dosage-form words so "Amiodarone
+        // Injection" and "Amiodarone" align — but that also collapses
+        // "Calcitriol Injection" and "Calcitriol Capsule" to the same key.
+        // The route guard is applied here too, not only on the model path:
+        // both paths create matches, and a rule enforced on one of them is
+        // not enforced at all.
+        const exact = candidates.find(
+          (d) =>
+            matchKey(d.genericName) === key &&
+            routesCompatible(b.title, d.genericName),
+        );
         if (exact !== undefined) drugId = exact._id;
       }
       if (drugId !== undefined) matched++;

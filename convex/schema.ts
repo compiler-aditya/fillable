@@ -290,6 +290,8 @@ export default defineSchema({
     eventsEmitted: v.number(),
     /** Read from the real Firecrawl metadata.creditsUsed, never estimated. */
     firecrawlCredits: v.number(),
+    /** Model calls made by this run. Optional so existing rows stay valid. */
+    modelCalls: v.optional(v.number()),
     error: v.optional(v.string()),
     startedAt: v.number(),
     finishedAt: v.optional(v.number()),
