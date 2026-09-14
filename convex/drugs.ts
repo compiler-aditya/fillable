@@ -27,6 +27,38 @@ export const board = query({
 });
 
 /**
+ * Every tracked medication, for the main table.
+ *
+ * Bounded at the table's page size rather than paginated: the FDA list is ~241
+ * drugs, and a analyst-style table is more useful showing everything at once
+ * than making someone page through it. `withIndex` keeps the read ordered and
+ * cheap; if the list ever grows past this bound the take() caps it rather than
+ * degrading into an unbounded scan.
+ */
+export const list = query({
+  args: {
+    splitOnly: v.optional(v.boolean()),
+    limit: v.optional(v.number()),
+  },
+  returns: v.array(schema.doc("drugs")),
+  handler: async (ctx, args) => {
+    const limit = Math.min(args.limit ?? 300, 400);
+
+    if (args.splitOnly === true) {
+      return await ctx.db
+        .query("drugs")
+        .withIndex("by_is_split_and_presentation_count", (q) =>
+          q.eq("isSplit", true),
+        )
+        .order("desc")
+        .take(limit);
+    }
+
+    return await ctx.db.query("drugs").withIndex("by_slug").take(limit);
+  },
+});
+
+/**
  * Full-text search over generic name, brands and dosage form.
  *
  * Brands matter disproportionately here: nobody types "Amphetamine Aspartate

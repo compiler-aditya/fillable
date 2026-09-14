@@ -2,6 +2,8 @@ import { useQuery } from "convex/react";
 import { CircleCheck, CircleSlash, Loader } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api } from "../../convex/_generated/api";
+import { AppShell } from "../components/AppShell";
+import { Ticker } from "../components/Ticker";
 import { Card } from "../components/ui/card";
 import { Skeleton } from "../components/ui/skeleton";
 import {
@@ -44,12 +46,10 @@ export function Pipeline() {
   }, []);
 
   return (
-    <div className="space-y-8">
+    <AppShell title="Pipeline">
+    <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-          Live data
-        </h1>
-        <p className="mt-3 max-w-xl text-[0.95rem] leading-relaxed text-muted-foreground">
+        <p className="max-w-3xl text-xs leading-relaxed text-muted-foreground">
           Every number on this site comes from a scheduled job reading the FDA
           and ASHP. This page shows those jobs as they run — the counters move
           while a sweep is in flight, without reloading.
@@ -57,7 +57,7 @@ export function Pipeline() {
       </div>
 
       {stats !== undefined && stats !== null && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           <Stat
             label="packages tracked"
             value={stats.totalPresentations.toLocaleString()}
@@ -198,6 +198,8 @@ export function Pipeline() {
           treated as changes, so this feed stays meaningful.
         </p>
       </section>
+      <Ticker />
     </div>
+    </AppShell>
   );
 }

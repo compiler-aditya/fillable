@@ -3,9 +3,9 @@ import { ConvexReactClient } from "convex/react";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
-import { Layout } from "./components/Layout";
 import "./index.css";
 import { Board } from "./routes/Board";
+import { Conflicts } from "./routes/Conflicts";
 import { Drug } from "./routes/Drug";
 import { NotFound } from "./routes/NotFound";
 import { Pipeline } from "./routes/Pipeline";
@@ -24,14 +24,13 @@ createRoot(document.getElementById("root")!).render(
     {/* ConvexAuthProvider, not ConvexProvider — the plain one never sends tokens. */}
     <ConvexAuthProvider client={convex}>
       <BrowserRouter>
-        <Layout>
-          <Routes>
-            <Route path="/" element={<Board />} />
-            <Route path="/d/:slug" element={<Drug />} />
-            <Route path="/pipeline" element={<Pipeline />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Layout>
+        <Routes>
+          <Route path="/" element={<Board />} />
+          <Route path="/d/:slug" element={<Drug />} />
+          <Route path="/conflicts" element={<Conflicts />} />
+          <Route path="/pipeline" element={<Pipeline />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
       </BrowserRouter>
     </ConvexAuthProvider>
   </StrictMode>,
