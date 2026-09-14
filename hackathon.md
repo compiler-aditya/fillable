@@ -10,9 +10,9 @@
 - **Components:** @convex-dev/static-hosting, @convex-dev/rate-limiter, @convex-dev/presence, @convex-dev/workpool
 - **Convex features:** schema, tables, indexes, full-text search, queries, internal mutations, internal actions, HTTP actions, scheduled functions, crons, components
 - **Auth:** Convex Auth
-- **AI models:** none in use yet. A provider-agnostic client exists at `convex/lib/model.ts` (default `openai/gpt-4o-mini`, resolving OpenAI, Gemini or the Convex AI Gateway at call time), but no function calls it.
+- **AI models:** `gemini-3.5-flash`, called through Gemini's OpenAI-compatible endpoint. The client at `convex/lib/model.ts` resolves OpenAI, Gemini or the Convex AI Gateway from environment at call time, so the provider is one env var rather than a code change.
 - **Started:** 2026-09-13T20:37:56Z
-- **Last updated:** 2026-09-13T23:26:24Z
+- **Last updated:** 2026-09-14T00:13:10Z
 
 ## Log
 
@@ -225,3 +225,37 @@ Not yet wired: OpenAI and AgentMail. 157 of 186 ASHP bulletins stay unmatched
 because matching requires exact name agreement — ASHP writes "Amino Acid
 Products" where the FDA writes "Amino Acid Injection" — and a wrong match would
 be worse than none.
+
+### 2026-09-13 - eb16dcb
+
+Matched ASHP bulletins to FDA drugs with a model (`convex/ingest/ashpMatch.ts`,
+`convex/lib/route.ts`). 157 bulletins resisted deterministic matching because
+the two sources name drugs differently — ASHP writes "Oxycodone Hydrochloride
+and Acetaminophen Tablets" where the FDA writes "Acetaminophen; Oxycodone
+Hydrochloride Tablet". 40 now match, taking verified source disagreements from
+11 to 18.
+
+The model selects, it never names: it is handed a shortlist drawn from the
+search index and returns a number, and the id is resolved locally. It cannot
+invent a drug that is not in our data.
+
+Three things came from checking the output rather than trusting it:
+
+- Passing Convex ids through the model got **46 of 149 replies rejected** — it
+  returned 32-character strings matching no shortlist entry. The guard caught
+  all of them, but a rejected reply is a lost match. Numbering the items and
+  choices instead took rejections to **0** and matches from 17 to 40.
+- The model matched "Calcitriol Injection" to "Calcitriol Capsule" after being
+  told verbatim not to. An injection and an oral capsule are separate products
+  with separate supply chains, so route compatibility is now enforced in code.
+  A prompt rule is a request; the guard is the enforcement.
+- That guard then changed nothing, because the match came from the
+  deterministic path rather than the model: `matchKey` strips dosage-form
+  words, so both names collapse to "calcitriol". Both paths create matches, and
+  a rule enforced on only one of them is not enforced at all.
+
+**Running on Gemini, not OpenAI.** AgentRouter rejects every non-CLI client
+(`unauthorized_client_error`, returned identically with and without a key), and
+the Convex AI Gateway needs a paid plan. The client resolves the provider from
+environment, so moving to OpenAI is one variable and no code change. 99 tests
+green.
