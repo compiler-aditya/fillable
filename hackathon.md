@@ -1,18 +1,17 @@
 # Hackathon log
 
 - **Project:** Fillable
-- **Event:** Convex All Gas Hackathon
 - **What it does:** Reads the FDA drug-shortage record at NDC level so a patient can see which exact manufacturer's version of their medication is available today.
-- **Live app:** not deployed
+- **Live app:** https://vivid-parakeet-666.convex.site
 - **Repo:** https://github.com/compiler-aditya/fillable
 - **Frontend:** Convex static hosting
-- **Convex deployment:** https://lovely-panther-645.convex.cloud (development)
+- **Convex deployment:** https://vivid-parakeet-666.convex.cloud
 - **Components:** @convex-dev/static-hosting, @convex-dev/rate-limiter, @convex-dev/presence, @convex-dev/workpool
 - **Convex features:** schema, tables, indexes, full-text search, queries, internal mutations, internal actions, HTTP actions, scheduled functions, crons, components
 - **Auth:** Convex Auth
 - **AI models:** `gemini-3.5-flash`, called through Gemini's OpenAI-compatible endpoint. The client at `convex/lib/model.ts` resolves OpenAI, Gemini or the Convex AI Gateway from environment at call time, so the provider is one env var rather than a code change.
 - **Started:** 2026-09-13T20:37:56Z
-- **Last updated:** 2026-09-14T00:13:10Z
+- **Last updated:** 2026-09-20T16:11:13Z
 
 ## Log
 
@@ -259,3 +258,18 @@ Three things came from checking the output rather than trusting it:
 the Convex AI Gateway needs a paid plan. The client resolves the provider from
 environment, so moving to OpenAI is one variable and no code change. 99 tests
 green.
+
+### 2026-09-20 - e4a80fe
+
+Integrated the Fillable v2 editorial experience as the public home page while
+keeping the full realtime shortage workspace at `/explore`
+(`src/LandingPage.tsx`, `src/landing.css`, `src/main.tsx`). The preview reads
+from the production Convex catalog and exposes exact manufacturer, package NDC,
+availability, source date, and the original FDA record without collecting
+prescription or account data.
+
+Published the backend and frontend to Convex production at
+`https://vivid-parakeet-666.convex.site`. Browser verification confirmed that
+the landing page loads real examples and that `/explore` renders 55 split-supply
+medications from the production deployment. The production build, lint, and all
+99 tests pass.
