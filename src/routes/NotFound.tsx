@@ -1,19 +1,15 @@
 import { Link } from "react-router-dom";
-import { AppShell } from "../components/AppShell";
-import { Card } from "../components/ui/card";
+import { Page } from "../components/SiteChrome";
 
 export function NotFound() {
   return (
-    <AppShell title="Not found">
-    <Card className="px-6 py-14 text-center">
-      <h1 className="text-lg font-medium">Page not found</h1>
-      <Link
-        to="/"
-        className="mt-3 inline-block text-sm text-primary underline underline-offset-2"
-      >
-        Back to all medications
-      </Link>
-    </Card>
-    </AppShell>
+    <Page>
+      <div className="mx-auto max-w-2xl px-4 py-24 text-center sm:px-6">
+        <h1 className="font-display text-2xl font-bold tracking-tight">Page not found</h1>
+        <Link to="/" className="mt-6 inline-block text-sm font-medium text-primary underline">
+          Back to all medications
+        </Link>
+      </div>
+    </Page>
   );
 }

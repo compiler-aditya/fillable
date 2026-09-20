@@ -1,33 +1,48 @@
-import { Check, CircleSlash, Minus, TriangleAlert } from "lucide-react";
 import type { Doc } from "../../convex/_generated/dataModel";
+import { AVAILABILITY_LABEL, stateLabel, type Availability } from "../lib/format";
 import { cn } from "../lib/utils";
-import { stateLabel, type Availability } from "../lib/format";
 
-const TONE: Record<Availability, { cls: string; Icon: typeof Check }> = {
-  available: {
-    cls: "bg-ok-surface text-ok border-ok-border",
-    Icon: Check,
-  },
-  limited: {
-    cls: "bg-low-surface text-low border-low-border",
-    Icon: TriangleAlert,
-  },
-  unavailable: {
-    cls: "bg-none-surface text-none border-none-border",
-    Icon: CircleSlash,
-  },
-  unknown: {
-    cls: "bg-muted text-muted-foreground border-border",
-    Icon: Minus,
-  },
+const DOT: Record<Availability, string> = {
+  available: "bg-ok",
+  limited: "bg-low",
+  unavailable: "bg-none",
+  unknown: "bg-unknown",
+};
+
+const PILL: Record<Availability, string> = {
+  available: "bg-ok-surface text-ok-foreground",
+  limited: "bg-low-surface text-low-foreground",
+  unavailable: "bg-none-surface text-none-foreground",
+  unknown: "bg-muted text-muted-foreground",
 };
 
 /**
- * Availability pill.
- *
- * Icon plus word, never colour alone — this is read on a phone, in a pharmacy,
- * by people who may be colour blind or looking at a bad screen in bad light.
+ * Availability pill: dot plus word, never colour alone — this is read on a
+ * phone, in a pharmacy, by people who may be colour blind.
  */
+export function StatusPill({
+  availability,
+  label,
+  className,
+}: {
+  availability: Availability;
+  label?: string;
+  className?: string;
+}) {
+  return (
+    <span
+      className={cn(
+        "inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold",
+        PILL[availability],
+        className,
+      )}
+    >
+      <span className={cn("size-1.5 rounded-full", DOT[availability])} aria-hidden="true" />
+      {label ?? AVAILABILITY_LABEL[availability]}
+    </span>
+  );
+}
+
 export function AvailabilityBadge({
   presentation,
   className,
@@ -35,28 +50,66 @@ export function AvailabilityBadge({
   presentation: Doc<"presentations">;
   className?: string;
 }) {
-  const { cls, Icon } = TONE[presentation.availability];
   return (
-    <span
-      className={cn(
-        "inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium",
-        cls,
-        className,
-      )}
-    >
-      <Icon className="size-3" aria-hidden="true" />
-      {stateLabel(presentation)}
-    </span>
+    <StatusPill
+      availability={presentation.availability}
+      label={stateLabel(presentation)}
+      className={className}
+    />
   );
 }
 
 /**
- * Proportional split of a drug's packages.
- *
- * Deliberately thin and quiet. It is a supporting glance, not the answer — the
- * answer is the NDC on the drug page.
+ * Segmented meter: one rounded bar split by count. Reads at a glance whether
+ * a drug has anything fillable without parsing numbers.
  */
-export function AvailabilityBar({
+export function Meter({
+  available,
+  limited,
+  unavailable,
+  className,
+  size = "md",
+}: {
+  available: number;
+  limited: number;
+  unavailable: number;
+  className?: string;
+  size?: "sm" | "md" | "lg";
+}) {
+  const total = Math.max(1, available + limited + unavailable);
+  const h = size === "lg" ? "h-3" : size === "sm" ? "h-1.5" : "h-2";
+  const segments: Array<[number, string]> = [
+    [available, "bg-ok"],
+    [limited, "bg-low"],
+    [unavailable, "bg-none"],
+  ];
+  return (
+    <div
+      role="img"
+      aria-label={`${available} available, ${limited} limited, ${unavailable} unavailable`}
+      className={cn("flex w-full gap-0.5 overflow-hidden rounded-full bg-muted", h, className)}
+    >
+      {segments.map(([n, color], i) =>
+        n > 0 ? (
+          <span key={i} className={cn("h-full", color)} style={{ width: `${(n / total) * 100}%` }} />
+        ) : null,
+      )}
+    </div>
+  );
+}
+
+/** Kept for the analyst routes; same meter, thin. */
+export function AvailabilityBar(props: {
+  available: number;
+  limited: number;
+  unavailable: number;
+  className?: string;
+}) {
+  if (props.available + props.limited + props.unavailable === 0) return null;
+  return <Meter {...props} size="sm" />;
+}
+
+export function CountsLine({
   available,
   limited,
   unavailable,
@@ -67,53 +120,26 @@ export function AvailabilityBar({
   unavailable: number;
   className?: string;
 }) {
-  const total = available + limited + unavailable;
-  if (total === 0) return null;
-  const pct = (n: number) => `${((n / total) * 100).toFixed(2)}%`;
-
+  const parts = [
+    { n: available, label: "available", dot: DOT.available },
+    { n: limited, label: "limited", dot: DOT.limited },
+    { n: unavailable, label: "unavailable", dot: DOT.unavailable },
+  ].filter((p) => p.n > 0);
   return (
-    <div
+    <p
       className={cn(
-        "flex h-1 w-full overflow-hidden rounded-full bg-muted",
+        "tnum flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground",
         className,
       )}
-      role="img"
-      aria-label={`${available} available, ${limited} limited, ${unavailable} unavailable of ${total} packages`}
     >
-      {available > 0 && <div style={{ width: pct(available) }} className="bg-ok" />}
-      {limited > 0 && <div style={{ width: pct(limited) }} className="bg-low" />}
-      {unavailable > 0 && (
-        <div style={{ width: pct(unavailable) }} className="bg-none" />
-      )}
-    </div>
-  );
-}
-
-/** Compact "44 · 9 · 20" count row that pairs with the bar. */
-export function AvailabilityCounts({
-  available,
-  limited,
-  unavailable,
-}: {
-  available: number;
-  limited: number;
-  unavailable: number;
-}) {
-  return (
-    <p className="tnum text-xs text-muted-foreground">
-      <span className="font-medium text-ok">{available}</span> available
-      {limited > 0 && (
-        <>
-          {" · "}
-          <span className="font-medium text-low">{limited}</span> limited
-        </>
-      )}
-      {unavailable > 0 && (
-        <>
-          {" · "}
-          <span className="font-medium text-none">{unavailable}</span> out
-        </>
-      )}
+      {parts.map((p) => (
+        <span key={p.label} className="inline-flex items-center gap-1.5">
+          <span className={cn("size-1.5 rounded-full", p.dot)} aria-hidden="true" />
+          <span className="font-semibold text-foreground">{p.n}</span> {p.label}
+        </span>
+      ))}
     </p>
   );
 }
+
+export const AvailabilityCounts = CountsLine;
