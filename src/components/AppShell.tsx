@@ -16,7 +16,7 @@ import { CommandPalette } from "./CommandPalette";
 import { Button } from "./ui/button";
 
 const NAV = [
-  { to: "/", label: "Shortages", Icon: Table2 },
+  { to: "/explore", label: "Shortages", Icon: Table2 },
   { to: "/conflicts", label: "Source conflicts", Icon: GitCompareArrows },
   { to: "/pipeline", label: "Pipeline", Icon: Activity },
 ] as const;
@@ -36,14 +36,19 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-4">
+      <Link
+        to="/"
+        onClick={onNavigate}
+        className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-4"
+        aria-label="Fillable home"
+      >
         <Pill className="size-4 text-primary" aria-hidden="true" />
         <span className="text-sm font-semibold tracking-tight">Fillable</span>
-      </div>
+      </Link>
 
       <nav className="flex-1 space-y-0.5 p-2">
         {NAV.map(({ to, label, Icon }) => {
-          const active = pathname === to || (to !== "/" && pathname.startsWith(to));
+          const active = pathname === to || pathname.startsWith(`${to}/`);
           return (
             <Link
               key={to}

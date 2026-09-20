@@ -4,6 +4,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import "./index.css";
+import { LandingPage } from "./LandingPage";
 import { Board } from "./routes/Board";
 import { Conflicts } from "./routes/Conflicts";
 import { Drug } from "./routes/Drug";
@@ -25,7 +26,15 @@ createRoot(document.getElementById("root")!).render(
     <ConvexAuthProvider client={convex}>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Board />} />
+          <Route
+            path="/"
+            element={
+              <LandingPage
+                onGetStarted={() => window.location.assign("/explore")}
+              />
+            }
+          />
+          <Route path="/explore" element={<Board />} />
           <Route path="/d/:slug" element={<Drug />} />
           <Route path="/conflicts" element={<Conflicts />} />
           <Route path="/pipeline" element={<Pipeline />} />
