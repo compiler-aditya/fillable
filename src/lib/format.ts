@@ -40,6 +40,12 @@ export function relativeTime(ms: number, now: number): string {
  */
 export const formatNdc = (ndc: string): string => ndc.trim();
 
+/** The hyphenated groups of an NDC, for typesetting each one separately. */
+export const ndcGroups = (ndc: string): string[] =>
+  formatNdc(ndc)
+    .split("-")
+    .filter((g) => g.length > 0);
+
 /**
  * Make a combination-product strength readable.
  *
